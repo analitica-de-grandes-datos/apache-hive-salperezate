@@ -33,15 +33,25 @@ LOAD DATA LOCAL INPATH 'data.tsv' INTO TABLE t0;
     >>> Escriba su respuesta a partir de este punto <<<
 */
 
-DROP TABLE IF EXISTS pregunta;
-CREATE TABLE pregunta 
-AS 
-        SELECT letters, words
-        FROM t0
-        LATERAL VIEW EXPLODE(c2) t0 AS letters
-        LATERAL VIEW EXPLODE(c3) t0 AS words, value;
+DROP TABLE IF EXISTS t0;
+CREATE TABLE t0 (
+    c1 STRING,
+    c2 ARRAY<CHAR(1)>, 
+    c3 MAP<STRING, INT>
+    )
+    ROW FORMAT DELIMITED 
+        FIELDS TERMINATED BY '\t'
+        COLLECTION ITEMS TERMINATED BY ','
+        MAP KEYS TERMINATED BY '#'
+        LINES TERMINATED BY '\n';
+LOAD DATA LOCAL INPATH 'data.tsv' INTO TABLE t0;
+
+CREATE TABLE data AS
+SELECT letras, key, value
+FROM (SELECT letras, c3 FROM t0 LATERAL VIEW EXPLODE(c2) t0 AS letras) data1
+LATERAL VIEW EXPLODE(c3) data1;
+
 INSERT OVERWRITE LOCAL DIRECTORY './output'
 ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
-SELECT letters, words, COUNT(1)
-FROM pregunta
-GROUP BY letters, words;
+SELECT letras, key, COUNT(1)
+FROM data GROUP BY letras, key;
